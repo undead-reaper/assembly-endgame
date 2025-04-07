@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -9,11 +9,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Gamepad } from "lucide-react";
+import { Info, Gamepad, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Keyboard from "@/components/Keyboard";
 import { Button } from "@/components/ui/button";
-import { cn, getFarewellText } from "@/lib/utils";
+import { cn, getFarewellText, useIsMounted } from "@/lib/utils";
 import ReactConfetti from "react-confetti";
 
 const languages: string[] = [
@@ -29,14 +29,35 @@ const languages: string[] = [
 ];
 
 const GameArea = () => {
-  const [currentWord, setCurrentWord] = React.useState<string>("react");
-  const splitWord = currentWord.split("");
+  const [currentWord, setCurrentWord] = React.useState<string>("");
+  const splitWord = currentWord!.split("");
   const [guessedLetters, setGuessedLetters] = React.useState<string[]>([]);
+
+  const [loading, setLoading] = React.useState<boolean>(true);
+  const isMounted = useIsMounted();
 
   const numGuessesLeft = languages.length - 1;
   const wrongGuessCount: number = guessedLetters.filter(
     (letter) => !currentWord.includes(letter)
   ).length;
+
+  useEffect(() => fetchRandomWord(7), []);
+
+  function fetchRandomWord(maxLength?: number) {
+    setLoading(true);
+    fetch(`/api/random-word/?maxLength=${maxLength}`)
+      .then((response) => response.json())
+      .then((data) => {
+        setCurrentWord(data.word);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching random word:", error);
+        setLoading(false);
+      });
+  }
+
+  () => fetchRandomWord(7);
 
   const isGameWon: boolean = splitWord.every((letter) =>
     guessedLetters.includes(letter)
@@ -60,12 +81,13 @@ const GameArea = () => {
   }
 
   function handlePlayAgain() {
+    fetchRandomWord(7);
     setGuessedLetters([]);
   }
 
-  return (
-    <div className="flex flex-col w-full max-w-[400px] max-h-[700px] h-full p-5">
-      <Card className="h-full w-full">
+  const cardContent: () => React.JSX.Element = () => {
+    return (
+      <>
         {isGameWon && <ReactConfetti recycle={false} numberOfPieces={1000} />}
         <CardHeader>
           <CardTitle>Assembly: Endgame</CardTitle>
@@ -173,6 +195,20 @@ const GameArea = () => {
             )}
           </div>
         </CardContent>
+      </>
+    );
+  };
+
+  return (
+    <div className="flex flex-col w-full max-w-[400px] max-h-[700px] h-full p-5">
+      <Card className="h-full w-full">
+        {isMounted && !loading ? (
+          cardContent()
+        ) : (
+          <div className="flex items-center justify-center h-full w-full">
+            <Loader2 className="animate-spin text-primary" />
+          </div>
+        )}
       </Card>
     </div>
   );
