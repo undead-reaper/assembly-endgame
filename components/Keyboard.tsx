@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import React from "react";
+import React, { useMemo } from "react";
 
 interface KeyboardProps {
   onClick: (key: string) => void;
@@ -8,29 +8,32 @@ interface KeyboardProps {
   currentWord: string;
 }
 
+const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
+
 const Keyboard = ({
   onClick,
   disabled,
   guessedLetters,
   currentWord,
 }: KeyboardProps) => {
-  const alphabets: string = "abcdefghijklmnopqrstuvwxyz";
-  const keyboardKeys: string[] = alphabets.split("");
+  const keyboardKeys = useMemo(() => ALPHABET.split(""), []);
 
   return (
     <div className="flex gap-2 flex-wrap items-center justify-center">
       {keyboardKeys.map((key) => {
-        const isGuessed: boolean = guessedLetters.includes(key);
-        const isCorrect: boolean = isGuessed && currentWord.includes(key);
-        const isWrong: boolean = isGuessed && !currentWord.includes(key);
+        const isGuessed = guessedLetters.includes(key);
+        const isCorrect = isGuessed && currentWord.includes(key);
+        const isWrong = isGuessed && !currentWord.includes(key);
+
+        const buttonClass = cn(
+          "w-[2rem] rounded-[0.18rem] h-[2rem] font-bold bg-accent disabled:opacity-15",
+          isCorrect && "bg-green-500",
+          isWrong && "bg-red-500"
+        );
 
         return (
           <button
-            className={cn(
-              `w-[2rem] rounded-[0.18rem] h-[2rem] font-bold bg-accent disabled:opacity-15`,
-              isCorrect && "bg-green-500",
-              isWrong && "bg-red-500"
-            )}
+            className={buttonClass}
             disabled={disabled}
             aria-disabled={disabled || isGuessed}
             aria-label={`Letter ${key}`}
