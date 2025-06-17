@@ -1,20 +1,23 @@
 "use client";
 
-import React, { useEffect, useCallback, useMemo } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Gamepad, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { fetchRandomWord, RandomWordResponse } from "@/app/actions";
 import Keyboard from "@/components/Keyboard";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn, getFarewellText, useIsMounted } from "@/lib/utils";
+import { Gamepad, Info, Loader2 } from "lucide-react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useTransition,
+} from "react";
 import ReactConfetti from "react-confetti";
+import { toast } from "sonner";
+import GameCardHeader from "./GameCardHeader";
+import LanguageChips from "./LanguageChips";
 
 const LANGUAGES = [
   "JavaScript",
@@ -33,31 +36,32 @@ const MAX_WORD_LENGTH = 7;
 const GameArea = () => {
   const [currentWord, setCurrentWord] = React.useState("");
   const [guessedLetters, setGuessedLetters] = React.useState<string[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [isFetchingWord, startFetchingTransition] = useTransition();
   const isMounted = useIsMounted();
 
-  const fetchRandomWord = useCallback((maxLength = MAX_WORD_LENGTH) => {
-    setLoading(true);
-    fetch(`/api/random-word/?maxLength=${maxLength}`)
-      .then((response) => response.json())
-      .then((data) => {
-        setCurrentWord(data.word);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching random word:", error);
-        setLoading(false);
-      });
+  const fetchWord = useCallback(async () => {
+    const length = MAX_WORD_LENGTH;
+    startFetchingTransition(async () => {
+      const result: RandomWordResponse = await fetchRandomWord(length);
+      if (result.error) {
+        console.error("Error fetching word:", result.error);
+        toast.error("Failed to fetch a word. Please try again.", {
+          description: result.error,
+        });
+        setCurrentWord("");
+      } else {
+        setCurrentWord(result.word!);
+      }
+    });
   }, []);
 
   useEffect(() => {
-    fetchRandomWord(MAX_WORD_LENGTH);
-  }, [fetchRandomWord]);
+    fetchWord();
+  }, []);
 
   const handlePlayAgain = useCallback(() => {
-    fetchRandomWord(MAX_WORD_LENGTH);
-    setGuessedLetters([]);
-  }, [fetchRandomWord]);
+    fetchWord();
+  }, [fetchWord]);
 
   const handleKeyClick = useCallback((key: string) => {
     setGuessedLetters((prev) => {
@@ -124,13 +128,7 @@ const GameArea = () => {
   const renderCardContent = () => (
     <>
       {isGameWon && <ReactConfetti recycle={false} numberOfPieces={1000} />}
-      <CardHeader>
-        <CardTitle>Assembly: Endgame</CardTitle>
-        <CardDescription>
-          Guess the word in under 8 attempts to keep the programming world safe
-          from Assembly!
-        </CardDescription>
-      </CardHeader>
+      <GameCardHeader />
       <CardContent>
         <Alert
           variant={isGameLost ? "destructive" : "default"}
@@ -145,19 +143,10 @@ const GameArea = () => {
           </AlertDescription>
         </Alert>
 
-        <div className="flex flex-wrap gap-2 justify-center">
-          {LANGUAGES.map((lang, index) => (
-            <Badge
-              key={lang}
-              className={cn(
-                "bg-primary/50",
-                index < wrongGuessCount && "opacity-50 bg-accent"
-              )}
-            >
-              {lang}
-            </Badge>
-          ))}
-        </div>
+        <LanguageChips
+          languages={LANGUAGES}
+          wrongGuessCount={wrongGuessCount}
+        />
 
         {/* Screen reader only status updates */}
         <div className="sr-only" aria-live="polite" role="status">
@@ -223,7 +212,7 @@ const GameArea = () => {
   return (
     <div className="flex flex-col w-full max-w-[400px] max-h-[700px] h-full p-5">
       <Card className="h-full w-full">
-        {isMounted && !loading ? (
+        {isMounted && !isFetchingWord ? (
           renderCardContent()
         ) : (
           <div className="flex items-center justify-center h-full w-full">
@@ -235,4 +224,4 @@ const GameArea = () => {
   );
 };
 
-export default GameArea;
+export default memo(GameArea);
