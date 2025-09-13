@@ -43,17 +43,22 @@ const GameArea = () => {
     const length = MAX_WORD_LENGTH;
     startFetchingTransition(async () => {
       const result: RandomWordResponse = await fetchRandomWord(length);
-      if (result.error) {
+      if (result.error || result.word === undefined) {
         console.error("Error fetching word:", result.error);
         toast.error("Failed to fetch a word. Please try again.", {
           description: result.error,
         });
         setCurrentWord("");
       } else {
-        setCurrentWord(result.word!);
+        resetGame(result.word);
       }
     });
   }, []);
+
+  const resetGame = (newValue: string) => {
+    setGuessedLetters([]);
+    setCurrentWord(newValue);
+  };
 
   useEffect(() => {
     fetchWord();
